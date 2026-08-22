@@ -1,0 +1,24 @@
+{
+  "name": "ty-agent",
+  "private": "true",
+  "version": "0.1.0",
+  "description": "",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "biome": "^0.3.3",
+    "typescript": "^7.0.2"
+  }
+}

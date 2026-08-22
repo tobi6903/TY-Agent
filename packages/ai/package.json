@@ -1,0 +1,12 @@
+{
+    "name": "@ty-agent/ai",
+    "version": "0.1.0",
+    "type": "module",
+    "main": "./src/index.ts",
+    "scripts": {
+        "build": "tsc --build"
+    },
+    "dependencies": {
+        "@anthropic-ai/sdk": "^0.54.0"
+    }
+}
