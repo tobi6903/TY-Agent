@@ -154,4 +154,5 @@ export const stream: StreamFunction = (
                 })
             }
         })
+    return []
 }
