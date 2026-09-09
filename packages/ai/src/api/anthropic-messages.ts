@@ -15,6 +15,7 @@ import type {
     ToolResultMessage,
 } from "../types.ts"
 import { AssistantMessageEventStream, EventStream } from "../utils/event-stream.js";
+import { isOAuthToken, readClaudeOAuthToken } from "../auth/credentials.js";
 
 function convertMessages(messages: Message[]): Anthropic.MessageParam[] {
     const result: Anthropic.MessageParam[] = []
@@ -134,10 +135,33 @@ export const stream: StreamFunction = (
             }
 
             try {
-                const apiKey = process.env.ANTHROPIC_API_KEY
-                if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set")
+                // const apiKey = process.env.ANTHROPIC_API_KEY
+                // if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set")
+                // const oauthToken = !apiKey ? readClaudeOAuthToken() : undefined
+                // const token = apiKey ?? oauthToken
+                // if (!token) throw new Error("No auth found. Set ANTHROPIC_API_KEY or log in via Claude Code.")
 
-                const client = new Anthropic({ apiKey: apiKey, baseURL: model.baseUrl })
+                const token = process.env.ANTHROPIC_API_KEY ?? readClaudeOAuthToken()
+                if (!token) throw new Error(
+                    "No auth found. Set ANTHROPIC_API_KEY or log in via Claude Code."
+                )
+
+                // const client = new Anthropic({ apiKey: apiKey, baseURL: model.baseUrl })
+
+                const usingOAuth = isOAuthToken(token)
+                const client = usingOAuth
+                    ? new Anthropic({
+                        apiKey: null,
+                        authToken: token,
+                        baseURL: model.baseUrl,
+                        dangerouslyAllowBrowser: true,
+                        defaultHeaders: {
+                            "anthropic-beta": "claude-code-20250219,oauth-2025-04-20",
+                            "user-agent": "claude-cli/2.1.75",
+                            "x-app": "cli",
+                        },
+                    })
+                    : new Anthropic({ apiKey: token, baseURL: model.baseUrl })
 
                 eventStream.push({ type: "start", partial: output })
 

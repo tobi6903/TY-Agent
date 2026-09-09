@@ -1,0 +1,135 @@
+
+## Agent Loop and Event Stream loop
+TIME →
+[t=0ms]
+agent-loop calls streamFn()
+  → anthropic-messages creates empty eventStream
+  → returns eventStream immediately
+  → starts background IIFE
+
+agent-loop starts: for await (const event of eventStream)
+  → queue empty → SLEEPS
+
+─────────────────────────────────────────────────────────
+
+[t=1ms]
+IIFE: creates Anthropic client
+IIFE: calls client.messages.create({ stream:true })
+  → opens HTTP connection to api.anthropic.com
+  → waiting for response...
+
+─────────────────────────────────────────────────────────
+
+[t=200ms]  ← network latency
+HTTP chunk 1 arrives:
+  {"type":"message_start","message":{"usage":{"input_tokens":10}}}
+
+sdkStream yields → event.type === "message_start"
+  → output.usage.input = 10
+  → (nothing pushed to eventStream yet)
+
+─────────────────────────────────────────────────────────
+
+[t=201ms]
+HTTP chunk 2 arrives:
+  {"type":"content_block_start","index":0,"content_block":{"type":"text"}}
+
+sdkStream yields → event.type === "content_block_start"
+  → block = { type:"text", text:"", index:0 }
+  → output.content.push(block)
+  → eventStream.push({ type:"text_delta", delta:"", partial:output })
+     └→ WAKES UP agent-loop's for await
+
+agent-loop receives: { type:"text_delta", delta:"" }
+  → emit({ type:"message_update" })   ← TUI shows empty cursor
+  → agent-loop's for await SLEEPS again
+
+─────────────────────────────────────────────────────────
+
+[t=210ms]
+HTTP chunk 3 arrives:
+  {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}
+
+sdkStream yields → event.type === "content_block_delta"
+  → block.text += "Hello"      → block.text = "Hello"
+  → eventStream.push({ type:"text_delta", delta:"Hello", partial:output })
+     └→ WAKES UP agent-loop
+
+agent-loop receives: { type:"text_delta", delta:"Hello" }
+  → emit({ type:"message_update" })   ← TUI prints "Hello"
+  → SLEEPS again
+
+─────────────────────────────────────────────────────────
+
+[t=215ms]
+HTTP chunk 4 arrives:
+  {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":" world"}}
+
+sdkStream yields
+  → block.text += " world"     → block.text = "Hello world"
+  → eventStream.push({ type:"text_delta", delta:" world", partial:output })
+     └→ WAKES UP agent-loop
+
+agent-loop receives: { type:"text_delta", delta:" world" }
+  → TUI prints " world"
+  → SLEEPS
+
+─────────────────────────────────────────────────────────
+
+[t=220ms]
+HTTP chunk 5: content_block_stop
+  → nothing pushed (text block, no end event)
+
+HTTP chunk 6:
+  {"type":"message_delta","delta":{"stop_reason":"end_turn"}}
+  → output.stopReason = "stop"
+
+HTTP chunk 7: message_stop
+  → sdkStream ends, for await of sdkStream exits
+
+─────────────────────────────────────────────────────────
+
+After sdkStream loop exits:
+  → eventStream.push({ type:"done", message:output })
+     └→ WAKES UP agent-loop
+
+agent-loop receives: { type:"done" }
+  → assistantMessage = event.message
+  → SLEEPS (one more iteration)
+
+  → for await of eventStream exits (done=true, queue empty)
+
+─────────────────────────────────────────────────────────
+
+agent-loop continues:
+  → stopReason === "stop" → break
+  → emit({ type:"agent_end" })
+  → return allAssistantMessages
+
+
+### Promises in eventStream
+
+// agent-loop.ts
+for await (const event of stream) {
+    // consume all events
+}
+// stream is fully done here
+const msg = await stream.result()   // called AFTER loop exits
+By the time result() is called, end() has already fired. this.done = true, this.resultValue is set. So check() runs immediately and resolves correctly.
+Pi avoids it by design — result() is only called after the loop finishes.
+
+// Define the shape (type)
+type Emit = (event: AgentEvent) => void
+
+// Create actual functions that match that shape (const)
+const printEmit: Emit = (event) => {
+    console.log(event)
+}
+
+const tuiEmit: Emit = (event) => {
+    renderToScreen(event)
+}
+
+const testEmit: Emit = (event) => {
+    collectedEvents.push(event)
+}
