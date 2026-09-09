@@ -24,13 +24,13 @@ export type {
     ModelCost,
     Model,
     Provider,
-} from "./types"
+} from "./types.js"
 
 // Event stream
-export { EventStream, AssistantMessageEventStream } from "./utils/event-stream"
+export { EventStream, AssistantMessageEventStream } from "./utils/event-stream.js"
 
 // Anthropic provider
-export { anthropicProvider, getAnthropicModel } from "./providers/anthropic"
+export { anthropicProvider, getAnthropicModel } from "./providers/anthropic.js"
 
 // Anthropic stream function (if someone wants to use it directly)
-export { stream as anthropicStream } from "./api/anthropic-messages"
+export { stream as anthropicStream } from "./api/anthropic-messages.js"

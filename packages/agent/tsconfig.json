@@ -1,13 +1,13 @@
 {
-    "extends": "../../tsconfig.json",
+    "extends": "../../tsconfig.base.json",
     "compilerOptions": {
         "rootDir": "src",
         "outDir": "dist",
-        "types": [
-            "node"
-        ],
         "composite": true
     },
+    "references": [
+        { "path": "../ai" }
+    ],
     "include": [
         "src"
     ]
